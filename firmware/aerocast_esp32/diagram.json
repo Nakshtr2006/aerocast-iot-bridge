@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "author": "Nakshtr Gupta",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 4.84, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": 70.34,
+      "left": -143.77,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    {
+      "type": "wokwi-gas-sensor",
+      "id": "gas1",
+      "top": 97.5,
+      "left": 172.8,
+      "rotate": 180,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": 218.7,
+      "left": -80.4,
+      "rotate": 180,
+      "attrs": { "temperature": "37.9", "humidity": "67.5" }
+    },
+    {
+      "type": "board-cd74hc4067",
+      "id": "mux1",
+      "top": 130.75,
+      "left": 347.11,
+      "rotate": 180,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": 123.5,
+      "left": 508.6,
+      "rotate": 90,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot2",
+      "top": 267.5,
+      "left": 527.8,
+      "rotate": 90,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot3",
+      "top": -1.3,
+      "left": 595,
+      "rotate": 90,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot4",
+      "top": 520.5,
+      "left": 49,
+      "rotate": 180,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot5",
+      "top": 392.3,
+      "left": 547,
+      "rotate": 90,
+      "attrs": {}
+    },
+    { "type": "wokwi-potentiometer", "id": "pot6", "top": -318.1, "left": 143.8, "attrs": {} },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot7",
+      "top": -153.8,
+      "left": -132.3,
+      "rotate": 270,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "oled1:GND", "esp:GND.2", "black", [ "v-96", "h240", "v48" ] ],
+    [ "oled1:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "oled1:SDA", "esp:21", "green", [ "v-86.4", "h220.87", "v86.4" ] ],
+    [ "oled1:SCL", "esp:22", "green", [ "v-105.6", "h249.9", "v76.8" ] ],
+    [ "gas1:GND", "esp:GND.2", "black", [ "h-57.6", "v-85.6" ] ],
+    [ "dht1:GND", "esp:GND.2", "black", [ "v-19.2", "h-57.6", "v144", "h249.6", "v-316.8" ] ],
+    [ "dht1:VCC", "esp:3V3", "red", [ "v-9.6", "h19.2", "v-182.4" ] ],
+    [ "gas1:VCC", "esp:5V", "red", [ "h-19.2", "v106.5", "h-163.2", "v-19.2" ] ],
+    [ "dht1:SDA", "esp:15", "green", [ "v-28.8", "h19.1", "v38.4", "h163.2", "v-57.6" ] ],
+    [ "gas1:AOUT", "esp:34", "green", [ "h0", "v96", "h-182.4", "v-172.8" ] ],
+    [ "mux1:VCC", "esp:3V3", "red", [] ],
+    [ "mux1:GND", "esp:GND.2", "black", [] ],
+    [ "mux1:EN", "esp:GND.2", "black", [] ],
+    [ "mux1:S0", "esp:18", "green", [] ],
+    [ "mux1:S1", "esp:19", "green", [] ],
+    [ "mux1:S2", "esp:23", "green", [] ],
+    [ "mux1:S3", "esp:25", "green", [] ],
+    [ "mux1:COM", "esp:35", "green", [] ],
+    [ "pot1:VCC", "esp:3V3", "red", [] ],
+    [ "pot1:GND", "esp:GND.2", "black", [] ],
+    [ "pot1:SIG", "mux1:I0", "green", [] ],
+    [ "pot2:VCC", "esp:3V3", "red", [] ],
+    [ "pot2:GND", "esp:GND.2", "black", [] ],
+    [ "pot2:SIG", "mux1:I1", "green", [] ],
+    [ "pot3:VCC", "esp:3V3", "red", [] ],
+    [ "pot3:GND", "esp:GND.2", "black", [] ],
+    [ "pot3:SIG", "mux1:I2", "green", [] ],
+    [ "pot4:VCC", "esp:3V3", "red", [] ],
+    [ "pot4:GND", "esp:GND.2", "black", [] ],
+    [ "pot4:SIG", "mux1:I3", "green", [] ],
+    [ "pot5:VCC", "esp:3V3", "red", [] ],
+    [ "pot5:GND", "esp:GND.2", "black", [] ],
+    [ "pot5:SIG", "mux1:I4", "green", [] ],
+    [ "pot6:VCC", "esp:3V3", "red", [] ],
+    [ "pot6:GND", "esp:GND.2", "black", [] ],
+    [ "pot6:SIG", "mux1:I5", "green", [] ],
+    [ "pot7:VCC", "esp:3V3", "red", [] ],
+    [ "pot7:GND", "esp:GND.2", "black", [] ],
+    [ "pot7:SIG", "mux1:I6", "green", [] ]
+  ],
+  "dependencies": {}
+}

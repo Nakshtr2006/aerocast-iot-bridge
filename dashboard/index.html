@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AeroCast Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 4px; }
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+.sub { color: var(--ink-2); margin: 0 0 18px; max-width: 80ch; }
+.conn { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.tile .label { color: var(--ink-2); font-size: 12px; }
+.tile .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; margin: 2px 0; }
+.tile .value small { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px;
+  border: 1px solid var(--border); color: var(--ink-2); }
+.cat { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+.cat i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(330px, 100%), 1fr)); gap: 12px; margin-bottom: 14px; }
+.chart-box { position: relative; height: 220px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+.scroll { overflow-x: auto; }
+.note { color: var(--ink-2); font-size: 12.5px; }
+.warn { color: var(--ink); }
+.warn::before { content: "⚠ "; color: var(--serious); }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+dt { color: var(--ink-2); } dd { margin: 0; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; flex-wrap: wrap; }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 2px; vertical-align: middle;
+  margin-right: 5px; background: var(--c); }
+.legend span.dash::before { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+#err { display: none; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>AeroCast</h1>
+    <span class="conn"><span class="dot" id="connDot"></span><span id="connText">Connecting…</span></span>
+  </header>
+  <p class="sub">Live view of the Wokwi ESP32 simulation and the AeroCast forecast models running in the IoT bridge.
+    All sensor and pollutant values are <strong>simulated</strong> (DHT22, MQ-2 and potentiometers in Wokwi), not
+    real-world measurements.</p>
+
+  <div class="card warn" id="err"></div>
+
+  <section class="tiles">
+    <div class="card tile"><div class="label">Temperature · DHT22</div><div class="value" id="tTemp">–</div><span class="tag">simulated</span></div>
+    <div class="card tile"><div class="label">Humidity · DHT22</div><div class="value" id="tHum">–</div><span class="tag">simulated</span></div>
+    <div class="card tile"><div class="label">MQ-2 gas (ADC raw)</div><div class="value" id="tMq2">–</div><span class="tag">simulated · uncalibrated</span></div>
+    <div class="card tile"><div class="label">Current AQI</div><div class="value" id="tAqiNow">–</div><span id="tAqiNowCat"></span> <span class="tag" id="tAqiNowTag">estimate</span></div>
+    <div class="card tile"><div class="label">Next-step AQI (XGBoost)</div><div class="value" id="tAqiNext">–</div><span id="tAqiNextCat"></span> <span class="tag">model forecast</span></div>
+    <div class="card tile"><div class="label">Model status</div><div class="value" id="tStatus" style="font-size:20px">–</div><span class="tag" id="tSteps"></span></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>AQI: estimate vs next-step forecast</h2>
+      <div class="legend"><span style="--c:var(--s1)">Current estimate</span><span class="dash" style="--c:var(--s2)">Forecast for next step</span></div>
+      <div class="chart-box"><canvas id="cAqi" aria-label="AQI over time"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Particulates (simulated input, µg/m³)</h2>
+      <div class="legend"><span style="--c:var(--s1)">PM2.5</span><span style="--c:var(--s2)">PM10</span></div>
+      <div class="chart-box"><canvas id="cPm" aria-label="PM2.5 and PM10 over time"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Temperature (°C)</h2>
+      <div class="chart-box"><canvas id="cTemp" aria-label="Temperature over time"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Relative humidity (%)</h2>
+      <div class="chart-box"><canvas id="cHum" aria-label="Humidity over time"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>MQ-2 raw ADC (0–4095)</h2>
+      <div class="chart-box"><canvas id="cMq2" aria-label="MQ-2 over time"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Pollutants: latest input vs next-step forecast</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Pollutant</th><th>Now</th><th>Next</th><th>Sub-idx</th><th>Test R²</th></tr></thead>
+        <tbody id="polBody"><tr><td colspan="5" class="note">Waiting for a reading with pollutant data…</td></tr></tbody>
+      </table></div>
+      <p class="note" id="polNote"></p>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>Model information</h2>
+      <dl id="modelInfo"><dt>Status</dt><dd>Loading…</dd></dl>
+    </div>
+    <div class="card">
+      <h2>How to read this</h2>
+      <p class="note"><strong>Current AQI</strong> is computed in the bridge with the CPCB method (max sub-index of
+        rolling means) over the simulated readings received so far. <strong>Next-step AQI</strong> and pollutant
+        forecasts come from the trained models (Delhi CPCB site_113, 2023–2024). Each reading is treated as one hourly
+        step, so the models need 48 readings (~8 minutes at 10 s uploads) before every lag feature is filled from real
+        history; until then the status shows <em>warming up</em>. Benzene, toluene, xylene, NO and NOx are not
+        simulated and are filled with training medians. Temperature, humidity and MQ-2 are not model inputs.</p>
+      <p class="note">Data is held in memory on the bridge (last 100 readings) and resets when the Render service restarts.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Recent readings</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Received (local)</th><th>Temp °C</th><th>RH %</th><th>MQ-2</th><th>PM2.5</th><th>PM10</th><th>AQI est.</th><th>AQI next</th><th>Status</th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<script>
+const API = new URLSearchParams(location.search).get("api") || "";
+const POLL_MS = 5000, ONLINE_S = 30;
+const CAT = { "Good": "good", "Satisfactory": "good", "Moderate": "warning",
+              "Poor": "serious", "Very Poor": "critical", "Severe": "critical" };
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v)) ? "–" : Number(v).toFixed(d);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const catHtml = c => c ? `<span class="cat"><i style="background:var(--${CAT[c] || "muted"})"></i>${esc(c)}</span>` : "";
+let modelInfo = null;
+
+function mkChart(id, series) {
+  return new Chart($(id), {
+    type: "line",
+    data: { labels: [], datasets: series.map(s => ({ label: s.label, data: [], borderWidth: 2, pointRadius: 0,
+      pointHoverRadius: 4, tension: 0.25, spanGaps: true, borderDash: s.dash ? [5, 4] : [], _var: s.color })) },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` } } },
+      scales: { x: { ticks: { maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } },
+                y: { grid: {}, ticks: { maxTicksLimit: 5 } } }
+    }
+  });
+}
+const charts = {
+  aqi: mkChart("cAqi", [{ label: "AQI estimate", color: "--s1" }, { label: "AQI forecast (next step)", color: "--s2", dash: true }]),
+  pm: mkChart("cPm", [{ label: "PM2.5", color: "--s1" }, { label: "PM10", color: "--s2" }]),
+  temp: mkChart("cTemp", [{ label: "Temperature °C", color: "--s1" }]),
+  hum: mkChart("cHum", [{ label: "Humidity %", color: "--s1" }]),
+  mq2: mkChart("cMq2", [{ label: "MQ-2 raw", color: "--s1" }]),
+};
+function theme() {
+  for (const ch of Object.values(charts)) {
+    ch.data.datasets.forEach(d => d.borderColor = css(d._var));
+    ch.options.scales.x.ticks.color = ch.options.scales.y.ticks.color = css("--muted");
+    ch.options.scales.y.grid.color = css("--grid");
+    ch.options.scales.x.border = ch.options.scales.y.border = { color: css("--axis") };
+    ch.update();
+  }
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", theme);
+
+async function getJSON(path) {
+  const r = await fetch(API + path, { cache: "no-store" });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
+  return r.json();
+}
+
+function renderTiles(latest) {
+  $("tTemp").innerHTML = latest ? `${fmt(latest.temperature)}<small> °C</small>` : "–";
+  $("tHum").innerHTML = latest ? `${fmt(latest.humidity)}<small> %</small>` : "–";
+  $("tMq2").innerHTML = latest ? `${latest.mq2_raw}<small> (${fmt(latest.mq2_relative_percent)}%)</small>` : "–";
+  const p = latest && latest.prediction && !latest.prediction.error ? latest.prediction : null;
+  if (!p) {
+    ["tAqiNow", "tAqiNext"].forEach(id => $(id).textContent = "–");
+    $("tAqiNowCat").innerHTML = $("tAqiNextCat").innerHTML = "";
+    $("tStatus").textContent = latest && latest.prediction ? "error" : (latest ? "no pollutant data" : "–");
+    $("tSteps").textContent = latest && latest.prediction ? latest.prediction.error : "";
+    return;
+  }
+  const cur = p.current_aqi_estimate, fc = p.forecast_next_step, dq = p.data_quality;
+  $("tAqiNow").textContent = fmt(cur.value, 0);
+  $("tAqiNowCat").innerHTML = catHtml(cur.category);
+  $("tAqiNowTag").textContent = cur.provisional ? "estimate · provisional" : "estimate";
+  $("tAqiNext").textContent = fmt(fc.aqi.value, 0);
+  $("tAqiNextCat").innerHTML = catHtml(fc.aqi.category);
+  $("tStatus").textContent = p.status === "ok" ? "Full context" : "Warming up";
+  $("tSteps").textContent = `${dq.steps_available}/${dq.steps_for_full_context} steps`;
+
+  const r2 = modelInfo ? modelInfo.pollutant_model.test_r2 : {};
+  $("polBody").innerHTML = Object.entries(fc.pollutants).map(([name, v]) => {
+    const now = latest.pollutants ? latest.pollutants[name] : null;
+    const ood = dq.out_of_training_range[name] ? ' <span class="tag">outside training range</span>' : "";
+    const unit = v.unit.replace("ug/m3", "µg/m³").replace("mg/m3", "mg/m³");
+    return `<tr><td>${esc(name)} <span class="note">${unit}</span>${ood}</td><td>${fmt(now, name === "CO" ? 2 : 1)}</td><td>${fmt(v.value, name === "CO" ? 2 : 1)}</td>
+      <td>${fmt(cur.sub_indices[name], 0)}</td><td>${r2[name] !== undefined ? fmt(r2[name], 2) : "–"}</td></tr>`;
+  }).join("");
+  const notes = [];
+  if (Object.keys(dq.out_of_training_range).length)
+    notes.push(`Inputs outside the training range (${Object.keys(dq.out_of_training_range).join(", ")}): forecasts there are extrapolations.`);
+  if (dq.negative_forecasts_clipped.length) notes.push(`Negative forecasts clipped to 0: ${dq.negative_forecasts_clipped.join(", ")}.`);
+  notes.push("R² = saved test-set score (held-out Sep–Dec 2024 CPCB data), not accuracy on simulated inputs.");
+  $("polNote").textContent = notes.join(" ");
+}
+
+function renderCharts(hist) {
+  const rows = hist.slice().reverse();
+  const labels = rows.map(r => new Date(r.received_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+  const pred = r => r.prediction && !r.prediction.error ? r.prediction : null;
+  const set = (ch, ...cols) => { ch.data.labels = labels; cols.forEach((c, i) => ch.data.datasets[i].data = c); ch.update(); };
+  set(charts.aqi, rows.map(r => pred(r)?.current_aqi_estimate.value ?? null), rows.map(r => pred(r)?.forecast_next_step.aqi.value ?? null));
+  set(charts.pm, rows.map(r => r.pollutants?.["PM2.5"] ?? null), rows.map(r => r.pollutants?.["PM10"] ?? null));
+  set(charts.temp, rows.map(r => r.temperature));
+  set(charts.hum, rows.map(r => r.humidity));
+  set(charts.mq2, rows.map(r => r.mq2_raw));
+
+  $("histBody").innerHTML = hist.slice(0, 25).map(r => {
+    const p = pred(r);
+    return `<tr><td>${esc(new Date(r.received_at).toLocaleString())}</td><td>${fmt(r.temperature)}</td><td>${fmt(r.humidity)}</td>
+      <td>${r.mq2_raw}</td><td>${fmt(r.pollutants?.["PM2.5"])}</td><td>${fmt(r.pollutants?.["PM10"])}</td>
+      <td>${p ? fmt(p.current_aqi_estimate.value, 0) : "–"}</td><td>${p ? fmt(p.forecast_next_step.aqi.value, 0) : "–"}</td>
+      <td>${p ? esc(p.status) : (r.prediction ? "error" : "no pollutants")}</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="note">No readings yet. Start the Wokwi simulation.</td></tr>`;
+}
+
+function renderConn(latest, ok) {
+  let text = "Bridge unreachable", color = "--critical";
+  if (ok && !latest) { text = "Bridge online · no device data yet"; color = "--warning"; }
+  else if (ok) {
+    const age = (Date.now() - new Date(latest.received_at).getTime()) / 1000;
+    const ago = age < 90 ? `${Math.round(age)} s ago` : `${Math.round(age / 60)} min ago`;
+    if (age <= ONLINE_S) { text = `Device online · last reading ${ago}`; color = "--good"; }
+    else { text = `Device silent · last reading ${ago}`; color = "--warning"; }
+  }
+  $("connText").textContent = text;
+  $("connDot").style.background = `var(${color})`;
+}
+
+function renderModel(info) {
+  if (!info || !info.ml_loaded) { $("modelInfo").innerHTML = `<dt>Status</dt><dd>ML not loaded${info?.ml_error ? ": " + esc(info.ml_error) : ""}</dd>`; return; }
+  const m = info.aqi_model.test_metrics;
+  $("modelInfo").innerHTML = `
+    <dt>AQI model</dt><dd>${esc(info.aqi_model.family)} · test MAE ${fmt(m.MAE, 2)}, RMSE ${fmt(m.RMSE, 2)}, R² ${fmt(m.R2, 4)}</dd>
+    <dt>Pollutant model</dt><dd>${esc(info.pollutant_model.family)} · 7 outputs</dd>
+    <dt>Features</dt><dd>${info.n_features} (pollutants, AQI, lags 1–24, rolling stats, time)</dd>
+    <dt>Training data</dt><dd>${esc(info.training_data)}</dd>
+    <dt>Why these</dt><dd>${esc(info.selection_rationale)}</dd>`;
+}
+
+async function tick() {
+  try {
+    const [hist] = await Promise.all([getJSON("/history?limit=100")]);
+    const latest = hist && hist.length ? hist[0] : null;
+    $("err").style.display = "none";
+    renderConn(latest, true); renderTiles(latest); renderCharts(hist || []);
+  } catch (e) {
+    renderConn(null, false);
+    $("err").textContent = `Could not reach the bridge (${e.message}). Render free instances can take ~30 s to wake up.`;
+    $("err").style.display = "block";
+  }
+}
+
+(async () => {
+  theme();
+  try { modelInfo = await getJSON("/model-info"); } catch (e) { modelInfo = null; }
+  renderModel(modelInfo);
+  await tick();
+  setInterval(tick, POLL_MS);
+})();
+</script>
+</body>
+</html>
